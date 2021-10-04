@@ -22,8 +22,8 @@ Nota: "Los archivos generados aparecerán en la ruta: storage/app/generated_data
 
 ## Primer paso
 
-Una vez que se tengan los requerimientos anteriores se debera utilizar el siguiente codigo como un inicio para el controlador
-
+Una vez que se tengan los requerimientos anteriores se deberá utilizar el siguiente código como un inicio para el controlador
+ 
 Con esto se determinará la base de datos a utilizar por el controlador.
 
     <?php
@@ -49,9 +49,9 @@ Con esto se determinará la base de datos a utilizar por el controlador.
 
 ## Función "crear_controladores"
 
-Mediante esta funcion se crearán los distintos CRUD que necesitara el modelo, como puede ser el mostrar los datos de cierta tabla mediante el uso de IDs o "Claves Primarias".
-
-Tambien se encuentran otros metodos CRUD como eliminar, actualizar e insertar.
+Mediante esta función se crearán los distintos CRUD que necesitará el modelo, como puede ser el mostrar los datos de cierta tabla mediante el uso de IDs o "Claves Primarias".
+ 
+También se encuentran otros métodos CRUD como eliminar, actualizar e insertar.
 
     function crear_controladores($tablas)
     {
@@ -124,7 +124,7 @@ Tambien se encuentran otros metodos CRUD como eliminar, actualizar e insertar.
 
 ## Función "crear_modelos"
 
-La siguiente función sirve para crear modelos de datos, tomando las tablas y las relaciones como los atributos a utilizar.
+La siguiente función sirve para crear modelos de datos, tomando las tablas y las relaciones como también los atributos a utilizar.
 
     function crear_modelos($tablas)
     {
@@ -174,7 +174,7 @@ La siguiente función sirve para crear modelos de datos, tomando las tablas y la
 
 ## Función "fillable"
 
-La utilidad de esta función es principalmente el llenar las columnas de las tablas con los atributos correspondientes dentro de la base de datos, un ejemplo de esto podria ser el agregar todos los atributos que se encuentren en la columna "nombre" de una tabla X.
+La utilidad de esta función es principalmente el llenar las columnas de las tablas con los atributos correspondientes dentro de la base de datos, un ejemplo de esto podría ser el agregar todos los atributos que se encuentren en la columna "nombre" de una tabla X.
 
     function fillable($tabla)
     {
@@ -198,9 +198,9 @@ La utilidad de esta función es principalmente el llenar las columnas de las tab
 
 ## Función "crear_relaciones"
 
-Esta funcion crear las relaciones que tendran las tablas, revisando si las relaciones dentro de la base de datos es de "Uno a muchos", "Muchos a muchos" o "Uno a uno".
-
-Tambien revisara si es que la relacion esta vinculada a una tabla intermedia, igualmente traspasara las claves foraneas necesarias para las relaciones.
+Esta función crea las relaciones que tendrán las tablas, revisando si las relaciones dentro de la base de datos es de "Uno a muchos", "Muchos a muchos" o "Uno a uno".
+ 
+También revisa si es que la relación está vinculada a una tabla intermedia, igualmente traspasara las claves foráneas necesarias para las relaciones.
 
     function crear_relaciones($tabla)
     {
@@ -232,4 +232,186 @@ Tambien revisara si es que la relacion esta vinculada a una tabla intermedia, ig
             EOT;
     }
     return $relaciones;
+    }
+
+## Función "armar_tablas"
+
+Esta función obtiene los nombres de las tablas en la base de datos, como también los atributos, pivots, relaciones, timestamps, auths, PKs, tipos de datos, nombres de columnas y relaciones inversas.
+
+    function armar_tablas()
+    {
+    $tablas = [];
+    $query = DB::table('information_schema.tables')
+        ->select('TABLE_NAME')
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $table) {
+        $tablas[$table->TABLE_NAME] = [];
+        $tablas[$table->TABLE_NAME]["columnas"] = [];
+        $tablas[$table->TABLE_NAME]["relaciones"] = [];
+        $tablas[$table->TABLE_NAME]["relaciones_inversas"] = [];
+        $tablas[$table->TABLE_NAME]["pivots"] = [];
+        $tablas[$table->TABLE_NAME]["auth"] = false;
+        $tablas[$table->TABLE_NAME]["timestamps"] = false;
+        $tablas[$table->TABLE_NAME]['tiene_pk'] = false;
+    }
+    $query = DB::table('information_schema.columns')
+        ->select('TABLE_NAME', 'COLUMN_NAME', 'DATA_TYPE', 'COLUMN_KEY', 'COLUMN_TYPE') //COLUMN_TYPE = int(11)
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $col) {
+        $columna = [];
+        $columna["COLUMN_NAME"] = $col->COLUMN_NAME;
+        $columna["COLUMN_KEY"] = $col->COLUMN_KEY;
+        $columna["DATA_TYPE"] = $col->DATA_TYPE;
+        $columna["COLUMN_TYPE"] = $col->COLUMN_TYPE;
+        $tablas[$col->TABLE_NAME]["columnas"][] = $columna;
+
+        if ($columna["COLUMN_NAME"] == 'password') {
+        $tablas[$col->TABLE_NAME]["auth"] = true;
+        }
+        if ($columna["COLUMN_NAME"] == 'created_at' || $columna["COLUMN_NAME"] == 'updated_at') {
+        $tablas[$col->TABLE_NAME]["timestamps"] = true;
+        }
+        if ($columna["COLUMN_KEY"] == "PRI") {
+        $tablas[$col->TABLE_NAME]['tiene_pk'] = true;
+        }
+    }
+    /**
+    * relaciones
+    */
+    $query = DB::table('information_schema.key_column_usage')
+        ->select('CONSTRAINT_NAME', 'TABLE_NAME', 'COLUMN_NAME', 'REFERENCED_TABLE_NAME', 'REFERENCED_COLUMN_NAME')
+        ->whereNotNull('REFERENCED_TABLE_NAME')
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $rel) {
+        $relacion = [];
+        $relacion["TABLE_NAME"] = $rel->TABLE_NAME;
+        $relacion["COLUMN_NAME"] = $rel->COLUMN_NAME;
+        $relacion["REFERENCED_TABLE_NAME"] = $rel->REFERENCED_TABLE_NAME;
+        $relacion["REFERENCED_COLUMN_NAME"] = $rel->REFERENCED_COLUMN_NAME;
+        $relacion["TIPO"] = 'belongsTo';
+        $tablas[$rel->TABLE_NAME]["relaciones"][] = $relacion;
+
+        $relacion_inversa = [];
+        $relacion_inversa["REFERENCED_TABLE_NAME"] = $rel->TABLE_NAME;
+        $relacion_inversa["TIPO"] = 'hasMany';
+
+        foreach ($tablas[$rel->TABLE_NAME]["columnas"] as $columna) {
+        if ($columna['COLUMN_NAME'] == $rel->COLUMN_NAME && $columna["COLUMN_KEY"] == 'UNI') {
+            $relacion_inversa["TIPO"] = 'hasOne';
+            break;
+        }
+        }
+        if ($tablas[$rel->TABLE_NAME]['tiene_pk']) {
+        $tablas[$rel->REFERENCED_TABLE_NAME]["relaciones_inversas"][] = $relacion_inversa;
+        }
+    }
+    foreach ($tablas as $key => $tabla) {
+        $relaciones = $tabla["relaciones"];
+        //$columnas = $tabla["columnas"];
+        // $tiene_pk = false;
+        // foreach ($columnas as $key => $columna) {
+        //     if ($columna["COLUMN_KEY"] == "PRI") {
+        //         $tiene_pk = true;
+        //         break;
+        //     }
+        // }
+        $tabla['es_pivot'] = false;
+        if (!$tabla['tiene_pk']) {
+        if (count($relaciones) == 2) {
+            $tabla['es_pivot'] = true;
+            $pivot0 = array(
+            "REFERENCED_TABLE_NAME" => $relaciones[0]['REFERENCED_TABLE_NAME'],
+            "PIVOT" => $relaciones[0]['TABLE_NAME']
+            );
+            $pivot1 = array(
+            "REFERENCED_TABLE_NAME" => $relaciones[1]['REFERENCED_TABLE_NAME'],
+            "PIVOT" => $relaciones[1]['TABLE_NAME']
+            );
+            $tablas[$relaciones[0]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot1;
+            $tablas[$relaciones[1]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot0;
+            //return $this->belongsToMany('App\Models\'.REFERENCED_TABLE_NAME, pivot);
+
+        }
+        }
+    }
+    return $tablas;
+    }
+
+## Función "model_name"
+
+Esta función tiene un uso muy simple, transformando los nombres de las tablas en la base de datos a los estándares de Laravel.
+
+    function model_name($table_name)
+    {
+    $separadas = explode('_', $table_name);
+    $unirMayus = '';
+    foreach ($separadas as $palabra) {
+        $unirMayus .= ucfirst($palabra);
+    }
+    return $unirMayus;
+    }
+
+## Función "pluralizar"
+
+
+
+    function pluralizar($pala_bra)
+    {
+    $separada = explode('_', $pala_bra);
+    $separada[0] = plural($separada[0]);
+    $unida = implode('_', $separada);
+    return $unida;
+    }
+
+## Función "plural"
+
+
+
+    function plural($palabra)
+    {
+    $excepciones = [
+        "crisis",
+        "coxis"
+    ];
+    foreach ($excepciones as $key => $excepcion) {
+        if ($palabra == $excepcion) {
+        return $excepcion;
+        }
+    }
+    $letra = substr($palabra, -1);
+    $subletra = substr($palabra, -2, 1);
+
+    $letra_vocal = false;
+    $subletra_vocal = false;
+
+    $distinto_de = 'lrndzjsx';
+    $es_distinto = strpos($distinto_de, $letra) === false;
+
+    $vocales = "aeiou";
+    $letra_vocal = strpos($vocales, $letra) !== false;
+    $subletra_vocal =  strpos($vocales, $subletra) !== false;
+
+    if ($letra == 'y') {
+        if ($subletra_vocal) {
+        $plural = $palabra . 'es';
+        } else {
+        $palabra = substr($palabra, 0, -1) . 'i';
+        $plural = $palabra . 's';
+        }
+        return $plural;
+    }
+    if ($letra_vocal || ($es_distinto && !$letra_vocal) || (!$subletra_vocal && !$letra_vocal && $letra != 's')) {
+        $plural = $palabra . 's';
+        return $plural;
+    }
+    if (!$letra_vocal) {
+        if ($letra == 'z') {
+        $palabra = substr($palabra, 0, -1) . 'c';
+        }
+        $plural = $palabra . 'es';
+        return $plural;
+    }
+    //$es = 'lrndzj';
+
+    return $palabra;
     }
