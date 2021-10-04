@@ -47,6 +47,111 @@ Con esto se determinará la base de datos a utilizar por el controlador.
 
 ---
 
+## Función "armar_tablas"
+
+Esta función obtiene los nombres de las tablas en la base de datos, como también los atributos, pivots, relaciones, timestamps, auths, PKs, tipos de datos, nombres de columnas y relaciones inversas.
+
+    function armar_tablas()
+    {
+    $tablas = [];
+    $query = DB::table('information_schema.tables')
+        ->select('TABLE_NAME')
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $table) {
+        $tablas[$table->TABLE_NAME] = [];
+        $tablas[$table->TABLE_NAME]["columnas"] = [];
+        $tablas[$table->TABLE_NAME]["relaciones"] = [];
+        $tablas[$table->TABLE_NAME]["relaciones_inversas"] = [];
+        $tablas[$table->TABLE_NAME]["pivots"] = [];
+        $tablas[$table->TABLE_NAME]["auth"] = false;
+        $tablas[$table->TABLE_NAME]["timestamps"] = false;
+        $tablas[$table->TABLE_NAME]['tiene_pk'] = false;
+    }
+    $query = DB::table('information_schema.columns')
+        ->select('TABLE_NAME', 'COLUMN_NAME', 'DATA_TYPE', 'COLUMN_KEY', 'COLUMN_TYPE') //COLUMN_TYPE = int(11)
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $col) {
+        $columna = [];
+        $columna["COLUMN_NAME"] = $col->COLUMN_NAME;
+        $columna["COLUMN_KEY"] = $col->COLUMN_KEY;
+        $columna["DATA_TYPE"] = $col->DATA_TYPE;
+        $columna["COLUMN_TYPE"] = $col->COLUMN_TYPE;
+        $tablas[$col->TABLE_NAME]["columnas"][] = $columna;
+
+        if ($columna["COLUMN_NAME"] == 'password') {
+        $tablas[$col->TABLE_NAME]["auth"] = true;
+        }
+        if ($columna["COLUMN_NAME"] == 'created_at' || $columna["COLUMN_NAME"] == 'updated_at') {
+        $tablas[$col->TABLE_NAME]["timestamps"] = true;
+        }
+        if ($columna["COLUMN_KEY"] == "PRI") {
+        $tablas[$col->TABLE_NAME]['tiene_pk'] = true;
+        }
+    }
+    /**
+    * relaciones
+    */
+    $query = DB::table('information_schema.key_column_usage')
+        ->select('CONSTRAINT_NAME', 'TABLE_NAME', 'COLUMN_NAME', 'REFERENCED_TABLE_NAME', 'REFERENCED_COLUMN_NAME')
+        ->whereNotNull('REFERENCED_TABLE_NAME')
+        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
+    foreach ($query as $key => $rel) {
+        $relacion = [];
+        $relacion["TABLE_NAME"] = $rel->TABLE_NAME;
+        $relacion["COLUMN_NAME"] = $rel->COLUMN_NAME;
+        $relacion["REFERENCED_TABLE_NAME"] = $rel->REFERENCED_TABLE_NAME;
+        $relacion["REFERENCED_COLUMN_NAME"] = $rel->REFERENCED_COLUMN_NAME;
+        $relacion["TIPO"] = 'belongsTo';
+        $tablas[$rel->TABLE_NAME]["relaciones"][] = $relacion;
+
+        $relacion_inversa = [];
+        $relacion_inversa["REFERENCED_TABLE_NAME"] = $rel->TABLE_NAME;
+        $relacion_inversa["TIPO"] = 'hasMany';
+
+        foreach ($tablas[$rel->TABLE_NAME]["columnas"] as $columna) {
+        if ($columna['COLUMN_NAME'] == $rel->COLUMN_NAME && $columna["COLUMN_KEY"] == 'UNI') {
+            $relacion_inversa["TIPO"] = 'hasOne';
+            break;
+        }
+        }
+        if ($tablas[$rel->TABLE_NAME]['tiene_pk']) {
+        $tablas[$rel->REFERENCED_TABLE_NAME]["relaciones_inversas"][] = $relacion_inversa;
+        }
+    }
+    foreach ($tablas as $key => $tabla) {
+        $relaciones = $tabla["relaciones"];
+        //$columnas = $tabla["columnas"];
+        // $tiene_pk = false;
+        // foreach ($columnas as $key => $columna) {
+        //     if ($columna["COLUMN_KEY"] == "PRI") {
+        //         $tiene_pk = true;
+        //         break;
+        //     }
+        // }
+        $tabla['es_pivot'] = false;
+        if (!$tabla['tiene_pk']) {
+        if (count($relaciones) == 2) {
+            $tabla['es_pivot'] = true;
+            $pivot0 = array(
+            "REFERENCED_TABLE_NAME" => $relaciones[0]['REFERENCED_TABLE_NAME'],
+            "PIVOT" => $relaciones[0]['TABLE_NAME']
+            );
+            $pivot1 = array(
+            "REFERENCED_TABLE_NAME" => $relaciones[1]['REFERENCED_TABLE_NAME'],
+            "PIVOT" => $relaciones[1]['TABLE_NAME']
+            );
+            $tablas[$relaciones[0]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot1;
+            $tablas[$relaciones[1]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot0;
+            //return $this->belongsToMany('App\Models\'.REFERENCED_TABLE_NAME, pivot);
+
+        }
+        }
+    }
+    return $tablas;
+    }
+
+---
+
 ## Función "crear_controladores"
 
 Mediante esta función se crearán los distintos CRUD que necesitará el modelo, como puede ser el mostrar los datos de cierta tabla mediante el uso de IDs o "Claves Primarias".
@@ -234,108 +339,7 @@ También revisa si es que la relación está vinculada a una tabla intermedia, i
     return $relaciones;
     }
 
-## Función "armar_tablas"
-
-Esta función obtiene los nombres de las tablas en la base de datos, como también los atributos, pivots, relaciones, timestamps, auths, PKs, tipos de datos, nombres de columnas y relaciones inversas.
-
-    function armar_tablas()
-    {
-    $tablas = [];
-    $query = DB::table('information_schema.tables')
-        ->select('TABLE_NAME')
-        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
-    foreach ($query as $key => $table) {
-        $tablas[$table->TABLE_NAME] = [];
-        $tablas[$table->TABLE_NAME]["columnas"] = [];
-        $tablas[$table->TABLE_NAME]["relaciones"] = [];
-        $tablas[$table->TABLE_NAME]["relaciones_inversas"] = [];
-        $tablas[$table->TABLE_NAME]["pivots"] = [];
-        $tablas[$table->TABLE_NAME]["auth"] = false;
-        $tablas[$table->TABLE_NAME]["timestamps"] = false;
-        $tablas[$table->TABLE_NAME]['tiene_pk'] = false;
-    }
-    $query = DB::table('information_schema.columns')
-        ->select('TABLE_NAME', 'COLUMN_NAME', 'DATA_TYPE', 'COLUMN_KEY', 'COLUMN_TYPE') //COLUMN_TYPE = int(11)
-        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
-    foreach ($query as $key => $col) {
-        $columna = [];
-        $columna["COLUMN_NAME"] = $col->COLUMN_NAME;
-        $columna["COLUMN_KEY"] = $col->COLUMN_KEY;
-        $columna["DATA_TYPE"] = $col->DATA_TYPE;
-        $columna["COLUMN_TYPE"] = $col->COLUMN_TYPE;
-        $tablas[$col->TABLE_NAME]["columnas"][] = $columna;
-
-        if ($columna["COLUMN_NAME"] == 'password') {
-        $tablas[$col->TABLE_NAME]["auth"] = true;
-        }
-        if ($columna["COLUMN_NAME"] == 'created_at' || $columna["COLUMN_NAME"] == 'updated_at') {
-        $tablas[$col->TABLE_NAME]["timestamps"] = true;
-        }
-        if ($columna["COLUMN_KEY"] == "PRI") {
-        $tablas[$col->TABLE_NAME]['tiene_pk'] = true;
-        }
-    }
-    /**
-    * relaciones
-    */
-    $query = DB::table('information_schema.key_column_usage')
-        ->select('CONSTRAINT_NAME', 'TABLE_NAME', 'COLUMN_NAME', 'REFERENCED_TABLE_NAME', 'REFERENCED_COLUMN_NAME')
-        ->whereNotNull('REFERENCED_TABLE_NAME')
-        ->where('TABLE_SCHEMA', DATABASE_SCHEMA)->get();
-    foreach ($query as $key => $rel) {
-        $relacion = [];
-        $relacion["TABLE_NAME"] = $rel->TABLE_NAME;
-        $relacion["COLUMN_NAME"] = $rel->COLUMN_NAME;
-        $relacion["REFERENCED_TABLE_NAME"] = $rel->REFERENCED_TABLE_NAME;
-        $relacion["REFERENCED_COLUMN_NAME"] = $rel->REFERENCED_COLUMN_NAME;
-        $relacion["TIPO"] = 'belongsTo';
-        $tablas[$rel->TABLE_NAME]["relaciones"][] = $relacion;
-
-        $relacion_inversa = [];
-        $relacion_inversa["REFERENCED_TABLE_NAME"] = $rel->TABLE_NAME;
-        $relacion_inversa["TIPO"] = 'hasMany';
-
-        foreach ($tablas[$rel->TABLE_NAME]["columnas"] as $columna) {
-        if ($columna['COLUMN_NAME'] == $rel->COLUMN_NAME && $columna["COLUMN_KEY"] == 'UNI') {
-            $relacion_inversa["TIPO"] = 'hasOne';
-            break;
-        }
-        }
-        if ($tablas[$rel->TABLE_NAME]['tiene_pk']) {
-        $tablas[$rel->REFERENCED_TABLE_NAME]["relaciones_inversas"][] = $relacion_inversa;
-        }
-    }
-    foreach ($tablas as $key => $tabla) {
-        $relaciones = $tabla["relaciones"];
-        //$columnas = $tabla["columnas"];
-        // $tiene_pk = false;
-        // foreach ($columnas as $key => $columna) {
-        //     if ($columna["COLUMN_KEY"] == "PRI") {
-        //         $tiene_pk = true;
-        //         break;
-        //     }
-        // }
-        $tabla['es_pivot'] = false;
-        if (!$tabla['tiene_pk']) {
-        if (count($relaciones) == 2) {
-            $tabla['es_pivot'] = true;
-            $pivot0 = array(
-            "REFERENCED_TABLE_NAME" => $relaciones[0]['REFERENCED_TABLE_NAME'],
-            "PIVOT" => $relaciones[0]['TABLE_NAME']
-            );
-            $pivot1 = array(
-            "REFERENCED_TABLE_NAME" => $relaciones[1]['REFERENCED_TABLE_NAME'],
-            "PIVOT" => $relaciones[1]['TABLE_NAME']
-            );
-            $tablas[$relaciones[0]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot1;
-            $tablas[$relaciones[1]['REFERENCED_TABLE_NAME']]["pivots"][] = $pivot0;
-            //return $this->belongsToMany('App\Models\'.REFERENCED_TABLE_NAME, pivot);
-
-        }
-        }
-    }
-    return $tablas;
-    }
+---
 
 ## Función "model_name"
 
@@ -351,9 +355,11 @@ Esta función tiene un uso muy simple, transformando los nombres de las tablas e
     return $unirMayus;
     }
 
+---
+
 ## Función "pluralizar"
 
-
+Esta función permite transformar la primera palabra de una oración separada por guión bajo en su versión plural, esta función se utiliza en las relaciones que sean "Uno a muchos" o "Muchos a muchos".
 
     function pluralizar($pala_bra)
     {
@@ -363,9 +369,11 @@ Esta función tiene un uso muy simple, transformando los nombres de las tablas e
     return $unida;
     }
 
+---
+
 ## Función "plural"
 
-
+Esta función tiene el trabajo de determinar cuál sería el plural de las palabras (en español) esto con el fin de automatizar la creación de nombres, textos y relaciones.
 
     function plural($palabra)
     {
