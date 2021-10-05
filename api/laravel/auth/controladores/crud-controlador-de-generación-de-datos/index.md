@@ -279,7 +279,7 @@ La siguiente función sirve para crear modelos de datos, tomando las tablas y la
 
 ## Función "fillable"
 
-La utilidad de esta función es generar un tipo de informe con el texto que se utilizó dentro del modelo.
+Esta función tiene el trabajo de generar el array "fillable" el cual contiene los nombres de las columnas de todas las tablas dentro del modelo.
 
     function fillable($tabla)
     {
