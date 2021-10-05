@@ -279,7 +279,7 @@ La siguiente función sirve para crear modelos de datos, tomando las tablas y la
 
 ## Función "fillable"
 
-La utilidad de esta función es principalmente el llenar las columnas de las tablas con los atributos correspondientes dentro de la base de datos, un ejemplo de esto podría ser el agregar todos los atributos que se encuentren en la columna "nombre" de una tabla X.
+La utilidad de esta función es generar un tipo de informe con el texto que se utilizó dentro del modelo.
 
     function fillable($tabla)
     {
