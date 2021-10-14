@@ -33,3 +33,4 @@ La mayor parte de su estructura está formada por dependencias, especialmente de
   
 
 * [Auth](./api/laravel/auth/index)
+* [Auth](./api/laravel/controladores/index)

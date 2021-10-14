@@ -7,5 +7,6 @@
 * [API](./api/index)
 	* [Laravel](./api/laravel/index)
 		* [Auth](./api/laravel/auth/index)
-			* [Controladores](./api/laravel/auth/controladores/index)
-				* [CRUD Generacion de Datos](./api/laravel/auth/controladores/crud-controlador-de-generación-de-datos/index)
+			* [CRUD Generacion de Datos](./api/laravel/auth/crud-controlador-de-generación-de-datos/index)
+			* [Login con JWT](./api/laravel/auth/login-con-jwt/index)
+		* [Controladores](./api/laravel/controladores/index)

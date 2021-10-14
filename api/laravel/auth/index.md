@@ -8,4 +8,5 @@ Los proveedores definen cómo se recuperan los usuarios de su almacenamiento per
 
 ¡No se preocupe si todo esto suena confuso ahora! Muchas aplicaciones nunca necesitarán modificar la configuración de autenticación predeterminada.
 
-* [Controladores](./api/laravel/auth/controladores/index)
+* [CRUD Generacion de Datos](./api/laravel/auth/crud-controlador-de-generación-de-datos/index)
+* [Login con JWT](./api/laravel/auth/login-con-jwt/index)
