@@ -44,3 +44,9 @@ Una vez completados los pasos anteriores se debe publicar el paquete de configur
     php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
 
 Esto creara la ruta "config/jwt.php" que servira para configurar los aspectos basicos del paquete.
+
+---
+
+### Generar clave secreta
+
+Se incluye un comando auxiliar que tiene la utilidad de crear una clave secreta para el usuario
