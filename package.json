@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "docsify-scroll-to-top": "^1.0.2"
+  }
+}
