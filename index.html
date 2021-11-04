@@ -12,7 +12,7 @@
 <body>
   <div id="app">Please wait...</div>
   <script>
-    window.$docsify = {
+    window.$docsify.scrollTo(0, 0) = {
         el: '#app',
         loadSidebar: true,
         search: 'auto',
@@ -22,13 +22,6 @@
           maxAge: 86400000, // Expiration time, the default one day
           paths: [], // or 'auto'
           placeholder: 'Buscar',
-        }
-        scrollToTop: {
-          auto: true,
-          text: 'Top',
-          right: 15,
-          bottom: 15,
-          offset: 500
         }
       }
   </script>
@@ -42,6 +35,5 @@
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/docsify.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify/lib/plugins/search.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify-dark-mode@latest/dist/index.min.js"></script>
-  <script src="//unpkg.com/docsify-scroll-to-top/dist/docsify-scroll-to-top.min.js"></script>
 </body>
 </html>
