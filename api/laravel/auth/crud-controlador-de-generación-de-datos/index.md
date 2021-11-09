@@ -1,3 +1,7 @@
+Documentacion modificada el: {docsify-updated}
+
+---
+
 # Controlador de generación de datos
 
 En esta documentación se detallará a un nivel simple las funciones del controlador y sus requerimientos.

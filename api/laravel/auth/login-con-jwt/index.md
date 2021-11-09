@@ -1,3 +1,7 @@
+Documentacion modificada el: {docsify-updated}
+
+---
+
 # Login con JWT
  
 En esta documentación se detalla a un nivel simple las funciones del login y sus requerimientos.
